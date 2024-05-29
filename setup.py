@@ -13,6 +13,7 @@ setup(name='mxdx',
       install_requires=[
           'click',
           'polars',
+          'numpy'
       ],
       entry_points='''
           [console_scripts]
