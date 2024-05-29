@@ -1,3 +1,4 @@
+"""mxdx: multiplexing and demultiplexing."""
 import click
 import sys
 import pathlib
@@ -9,6 +10,7 @@ from ._constants import (INTERLEAVE, R1ONLY, R2ONLY, SEQUENTIAL,
 
 @click.group()
 def cli():
+    """mxdx: multiplexing and demultiplexing."""
     pass
 
 

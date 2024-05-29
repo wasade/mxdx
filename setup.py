@@ -1,4 +1,4 @@
-"""mxdx: multiplexing and demultiplexing tools"""
+"""mxdx: multiplexing and demultiplexing."""
 import versioneer
 from setuptools import setup, find_packages
 

@@ -321,7 +321,7 @@ class IO:
 
     @staticmethod
     def io_from_stream(stream, n_lines=4):
-        """Sniff a datastream which cannot be seeked"""
+        """Sniff a datastream which cannot be seeked."""
         lines = ''.join([stream.readline() for i in range(n_lines)])
         buf = io.StringIO(lines)
         read_f, write_f = IO.sniff(buf)
@@ -370,7 +370,7 @@ class IO:
 
         for fn_read, fn_write in io_pairs:
             buf.seek(0)
-            if next(fn_read(buf)) != None:
+            if next(fn_read(buf)) is not None:
                 return (fn_read, fn_write)
 
         return None, None
@@ -449,30 +449,31 @@ def _readfq(fp): # this is a generator function
     last = None # this is a buffer keeping the last unprocessed line
     while True: # mimic closure; is it a bad idea?
         if not last: # the first record or a record following a fastq
-            for l in fp: # search for the start of the next record
-                if l[0] in '>@': # fasta/q header line
-                    last = l[:-1] # save this line
+            for line in fp: # search for the start of the next record
+                if line[0] in '>@': # fasta/q header line
+                    last = line[:-1] # save this line
                     break
         if not last:
             break
         name, seqs, last = last[1:].partition(" ")[0], [], None
-        for l in fp: # read the sequence
-            if l[0] in '@+>':
-                last = l[:-1]
+        for line in fp: # read the sequence
+            if line[0] in '@+>':
+                last = line[:-1]
                 break
-            seqs.append(l[:-1])
+            seqs.append(line[:-1])
         if not last or last[0] != '+': # this is a fasta record
             yield name, ''.join(seqs), None # yield a fasta record
             count += 1
-            if not last: break
+            if not last:
+                break
         else: # this is a fastq record
             seq, leng, seqs = ''.join(seqs), 0, []
-            for l in fp: # read the quality
-                seqs.append(l[:-1])
-                leng += len(l) - 1
+            for line in fp: # read the quality
+                seqs.append(line[:-1])
+                leng += len(line) - 1
                 if leng >= len(seq): # have read enough quality
                     last = None
-                    yield name, seq, ''.join(seqs); # yield a fastq record
+                    yield name, seq, ''.join(seqs) # yield a fastq record
                     count += 1
                     break
             if last: # reach EOF before reading enough quality
@@ -503,7 +504,7 @@ def _readsam(data):
 
                 if not refstart.isdigit():
                     raise ParseError()
-            except:
+            except:  # noqa E722
                 yield None, None
                 break
             else:

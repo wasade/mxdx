@@ -16,6 +16,7 @@ from ._constants import (INTERLEAVE, R1ONLY, R2ONLY, SEQUENTIAL,
 
 class Multiplex:
     """Multiplex records from a file batch."""
+
     def __init__(self, file_map, batch, paired_handling, output):
         self._file_map = file_map
         self._batch = batch
@@ -48,7 +49,7 @@ class Multiplex:
             yield rec
 
     def read(self):
-        """Read requested records, tag them, and emplace in a queue"""
+        """Read requested records, tag them, and emplace in a queue."""
         mode = 'rt'
 
         read_f = self._read_f
@@ -139,6 +140,7 @@ class BufferedQueue:
     To adjust for this, we're increasing the amount of data which an
     individual queue item can hold.
     """
+
     BUFSIZE = 1024
 
     def __init__(self, ctx):
@@ -215,7 +217,7 @@ class Demultiplex:
         writer.join()
 
     def read(self):
-        """Read from the input stream and queue"""
+        """Read from the input stream and queue."""
         # we can't pickle the streams so this has to be thread local
         if self._mux_input == '-':
             # see https://docs.python.org/3/library/multiprocessing.html#programming-guidelines
@@ -267,7 +269,7 @@ class Demultiplex:
         out_f.write(rec.write())
 
     def write(self):
-        """Write to the respective outputs"""
+        """Write to the respective outputs."""
         default = MuxFile("badtag.r1", "badtag.r2", 0, sys.maxsize, "badtag",
                           False)
 
