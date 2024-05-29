@@ -7,11 +7,12 @@ from collections import deque, defaultdict
 import io
 import glob
 import re
+import time
 
 from ._io import IO, MuxFile
 from ._constants import (INTERLEAVE, R1ONLY, R2ONLY, SEQUENTIAL,
-                         THREAD_COMPLETE, R1, R2, MERGE, SEQUENTIAL,
-                         SEPARATE, PARTIAL, PATH, DATA)
+                         READ_COMPLETE, R1, R2, MERGE, SEQUENTIAL,
+                         SEPARATE, PARTIAL, PATH, DATA, ERROR, COMPLETE)
 
 
 class Multiplex:
@@ -87,7 +88,7 @@ class Multiplex:
                 self.buffered_queue.put(rec.tag(tag))
 
         # signal that we are done reading
-        self.buffered_queue.put(THREAD_COMPLETE)
+        self._read_complete()
 
     def write(self):
         """Write records from a queue to an output."""
@@ -107,26 +108,61 @@ class Multiplex:
             recs = self.buffered_queue.get()
 
             # if we are complete then terminate gracefully
-            if recs == THREAD_COMPLETE:
+            if recs == READ_COMPLETE:
                 break
 
             # otherwise, write each record
             for rec in recs:
-                output.write(rec.write())
+                try:
+                    output.write(rec.write())
+                except BrokenPipeError:
+                    # something bad happened downstream
+                    self._terminate()
+                    break
 
         if self._output != '-':
             output.close()
+
+        self._write_complete()
+
+    def _terminate(self):
+        self.msg_queue.put(ERROR)
+
+    def _write_complete(self):
+        self.msg_queue.put(COMPLETE)
+
+    def _read_complete(self):
+        self.buffered_queue.put(READ_COMPLETE)
 
     def start(self):
         """Start the Multiplexing."""
         ctx = mp.get_context('spawn')
         self.buffered_queue = BufferedQueue(ctx)
+        self.msg_queue = ctx.Queue()
 
         reader = ctx.Process(target=self.read)
         writer = ctx.Process(target=self.write)
 
         reader.start()
         writer.start()
+
+        # monitor reader and writer externally and kill if requested
+        while True:
+            time.sleep(0.1)
+            if self.msg_queue.empty():
+                continue
+
+            msg = self.msg_queue.get()
+
+            if msg == ERROR:
+                print(f"Error received in {self.__class__}; terminating",
+                      file=sys.stderr, flush=True)
+                reader.terminate()
+                writer.terminate()
+                break
+            elif msg == COMPLETE:
+                break
+            time.sleep(0.1)
 
         reader.join()
         writer.join()
@@ -160,9 +196,9 @@ class BufferedQueue:
     def put(self, item):
         # if we receive a thread complete signal, make sure we drain our
         # buffer before passing on the completion message
-        if item == THREAD_COMPLETE:
+        if item == READ_COMPLETE:
             self._place_buf()
-            self._queue.put(THREAD_COMPLETE)
+            self._queue.put(READ_COMPLETE)
         else:
             self._buf.append(item)
 
@@ -206,12 +242,29 @@ class Demultiplex:
         """Start the Demultiplexing."""
         ctx = mp.get_context('spawn')
         self.buffered_queue = BufferedQueue(ctx)
+        self.msg_queue = ctx.Queue()
 
         reader = ctx.Process(target=self.read)
         writer = ctx.Process(target=self.write)
 
         reader.start()
         writer.start()
+
+        while True:
+            time.sleep(0.1)
+            if self.msg_queue.empty():
+                continue
+
+            msg = self.msg_queue.get()
+
+            if msg == ERROR:
+                print(f"Error received in {self.__class__}; terminating",
+                      file=sys.stderr, flush=True)
+                reader.terminate()
+                writer.terminate()
+                break
+            elif msg == COMPLETE:
+                break
 
         reader.join()
         writer.join()
@@ -228,13 +281,28 @@ class Demultiplex:
         else:
             mux_input = open(self._mux_input, 'rt')
 
-        sniffed, read_f, _ = IO.io_from_stream(mux_input)
+        try:
+            sniffed, read_f, _ = IO.io_from_stream(mux_input)
+        except StopIteration:
+            # stream is empty, upstream program likely bailed
+            self._terminate()
+            return
+
         mux_input = sniffed
 
         for rec in read_f(mux_input):
             self.buffered_queue.put(rec)
 
-        self.buffered_queue.put(THREAD_COMPLETE)
+        self._read_complete()
+
+    def _terminate(self):
+        self.msg_queue.put(ERROR)
+
+    def _read_complete(self):
+        self.buffered_queue.put(READ_COMPLETE)
+
+    def _write_complete(self):
+        self.msg_queue.put(COMPLETE)
 
     @lru_cache()
     def _get_output_path(self, mx, orientation):
@@ -278,7 +346,7 @@ class Demultiplex:
             recs = self.buffered_queue.get()
 
             # if we are complete then terminate gracefully
-            if recs == THREAD_COMPLETE:
+            if recs == READ_COMPLETE:
                 break
 
             # otherwise, write each record
@@ -286,6 +354,8 @@ class Demultiplex:
                 tag, rec = rec.detag(self._valid_tags)
                 mx = self._tag_lookup.get(tag, default)
                 self._write_rec(mx, rec)
+
+        self._write_complete()
 
 
 class Consolidate:
@@ -338,7 +408,7 @@ class Consolidate:
                 for block in self._bulk_read(self._open_f(fp, 'rb')):
                     self.queue.put((DATA, block))
 
-        self.queue.put(THREAD_COMPLETE)
+        self.queue.put(READ_COMPLETE)
 
     def write(self):
         current_handle = None
@@ -347,7 +417,7 @@ class Consolidate:
             msg = self.queue.get()
 
             # if we are complete then terminate gracefully
-            if msg == THREAD_COMPLETE:
+            if msg == READ_COMPLETE:
                 break
             else:
                 dtype, data = msg

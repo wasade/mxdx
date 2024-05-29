@@ -1,11 +1,11 @@
 #!/bin/bash
 
 files=../usage-test-files.tsv
-dbidx=/path/to/bt2-db
+dbidx=/path/to/db
 batchsize=15
-batchmax=$(mxdx get-number-of-batches --file-map ${files})
+batchmax=$(mxdx get-max-batch-number --file-map ${files} --batch-size ${batchsize})
 output_base=$(pwd)
-ext=fna.gz
+ext=sam.xz
 
 j=$(sbatch \
       --parsable \

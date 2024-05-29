@@ -206,7 +206,10 @@ class DemultiplexTests(unittest.TestCase):
 
         self.foo_hash = hashlib.md5(fm_paired[1][0].encode('ascii')).hexdigest()[:3]
         self.bar_hash = hashlib.md5(fm_paired[2][0].encode('ascii')).hexdigest()[:3]
-        self.clean_up = tempfile.TemporaryDirectory(delete=False)
+        try:
+            self.clean_up = tempfile.TemporaryDirectory(delete=False)
+        except TypeError:
+            self.clean_up = tempfile.TemporaryDirectory()
 
     def tearDown(self):
         shutil.rmtree(self.clean_up.name)
@@ -388,7 +391,10 @@ class ConsolidateTests(unittest.TestCase):
 
         self.foo_hash = hashlib.md5(fm_paired[1][0].encode('ascii')).hexdigest()[:3]
         self.bar_hash = hashlib.md5(fm_paired[2][0].encode('ascii')).hexdigest()[:3]
-        self.clean_up = tempfile.TemporaryDirectory(delete=False)
+        try:
+            self.clean_up = tempfile.TemporaryDirectory(delete=False)
+        except TypeError:
+            self.clean_up = tempfile.TemporaryDirectory()
 
     def tearDown(self):
         shutil.rmtree(self.clean_up.name)

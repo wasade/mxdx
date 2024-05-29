@@ -3,7 +3,7 @@ import io
 import os
 
 from mxdx._io import (FileMap, MuxFile, IO, ParseError, FastaRecord,
-                      FastqRecord, SamRecord, ChainIO)
+                      FastqRecord, SamRecord)
 
 
 def _serialize(data):
@@ -24,6 +24,16 @@ class FileMapTests(unittest.TestCase):
                      ["bing", "bing2", "10"]]
         self.fm_unpaired = _serialize(fm_unpaired)
         self.fm_paired = _serialize(fm_paired)
+
+    def test_number_of_batches_bs1(self):
+        obs = FileMap.from_tsv(self.fm_unpaired, 1).number_of_batches
+        exp = 1310
+        self.assertEqual(obs, exp)
+
+    def test_number_of_batches_bs100(self):
+        obs = FileMap.from_tsv(self.fm_unpaired, 100).number_of_batches
+        exp = 14
+        self.assertEqual(obs, exp)
 
     def test_filemap_from_tsv_construction_unpaired(self):
         obs = FileMap.from_tsv(self.fm_unpaired, 1)
@@ -193,40 +203,6 @@ class RecordTests(unittest.TestCase):
 
 
 class IOTests(unittest.TestCase):
-    def test_chainio(self):
-        a = 'foo\nbar\nbaz\n'
-        b = 'foo2\nbar2\nbaz2\n'
-
-        c = ChainIO(io.StringIO(a), io.StringIO(b))
-        obs = c.read()
-        exp = 'foo\nbar\nbaz\nfoo2\nbar2\nbaz2\n'
-        self.assertEqual(obs, exp)
-
-        c = ChainIO(io.StringIO(a), io.StringIO(b))
-        exps = ['foo\n', 'bar\n', 'baz\n', 'foo2\n', 'bar2\n', 'baz2\n']
-        for exp in exps:
-            obs = c.readline()
-            self.assertEqual(obs, exp)
-
-        c = ChainIO(io.StringIO(a), io.StringIO(b))
-        exps = ['foo\n', 'bar\n', 'baz\n', 'foo2\n', 'bar2\n', 'baz2\n']
-        for obs, exp in zip(c, exps):
-            self.assertEqual(obs, exp)
-
-        c = ChainIO(io.StringIO(a), io.StringIO(b))
-        exp = 'foo\nbar\n'
-        obs = c.read(8)
-        self.assertEqual(obs, exp)
-        exp = 'baz\nfoo2'
-        obs = c.read(8)
-        self.assertEqual(obs, exp)
-        exp = '\nbar2\nba'
-        obs = c.read(8)
-        self.assertEqual(obs, exp)
-        exp = 'z2\n'
-        obs = c.read(8)
-        self.assertEqual(obs, exp)
-
     def test_io_from_stream(self):
         data = '\n'.join([">1", "aatt", ">2", "aa", ">3", "tt", ">4", "gg",
                           ">5", "cc", ">6", "gc", ""])

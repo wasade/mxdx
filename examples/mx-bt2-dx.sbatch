@@ -52,7 +52,7 @@ mxdx mux \
         bowtie2 \
             -p ${bt2_cores} \
             -x ${DBIDX} \
-            -f - \
+            -q - \
             --no-head \
             --no-unal | \
                 mxdx demux \

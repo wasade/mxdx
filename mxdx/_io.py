@@ -7,7 +7,7 @@ import gzip
 import lzma
 import bz2
 import mimetypes
-from itertools import chain
+from math import ceil
 
 import polars as pl
 
@@ -115,6 +115,10 @@ class FileMap:
     @property
     def cumsum(self):
         return list(self._df[self._record_cumsum])
+
+    @property
+    def number_of_batches(self):
+        return ceil(self._df[self._record_count].sum() / self._batch_size)
 
     def _init(self):
         df = self._df.with_row_index(name=self._row_index, offset=1)
@@ -272,48 +276,6 @@ class ParseError(Exception):
     pass
 
 
-class ChainIO:
-    def __init__(self, a, b):
-        self._stream_a = a
-        self._stream_b = b
-        self._current = self._stream_a
-
-    def read(self, n=None):
-        buf = self._current.read(n)
-
-        if n is None:
-            if self._current is self._stream_a:
-                self._current = self._stream_b
-                buf2 = self._current.read()
-                return buf + buf2
-            else:
-                return buf
-        elif len(buf) < n:
-            if self._current is self._stream_a:
-                self._current = self._stream_b
-                remainder = n - len(buf)
-                buf2 = self._current.read(remainder)
-                return buf + buf2
-            else:
-                return buf
-        else:
-            return buf
-
-    def readline(self):
-        buf = self._current.readline()
-        if not buf and self._current is self._stream_a:
-            self._current = self._stream_b
-            buf = self._current.readline()
-        return buf
-
-    def __iter__(self):
-        while True:
-            line = self.readline()
-            if not line:
-                break
-            yield line
-
-
 class IO:
     @classmethod
     def valid_interleave(cls):
@@ -322,13 +284,21 @@ class IO:
     @staticmethod
     def io_from_stream(stream, n_lines=4):
         """Sniff a datastream which cannot be seeked."""
-        lines = ''.join([stream.readline() for i in range(n_lines)])
-        buf = io.StringIO(lines)
-        read_f, write_f = IO.sniff(buf)
-        buf.seek(0)
+        if hasattr(stream, 'buffer'):
+            peek = stream.buffer.peek(1024)
+        elif hasattr(stream, 'peek'):
+            peek = stream.peek(1024)
+        else:
+            peek = stream.read(1024)
+            stream.seek(0)
 
-        reset_stream = ChainIO(buf, stream)
-        return reset_stream, read_f, write_f
+        if isinstance(peek, bytes):
+            peek = peek.decode('utf-8')
+
+        buf = io.StringIO(peek)
+        read_f, write_f = IO.sniff(buf)
+
+        return stream, read_f, write_f
 
     @staticmethod
     def io_from_mx(mxfile):

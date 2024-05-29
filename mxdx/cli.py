@@ -90,5 +90,21 @@ def consolidate_partials(output_base, extension):
     cx.start()
 
 
+@cli.command()
+@click.option('--file-map', type=click.Path(exists=True), required=True,
+              help="Files with record counts for processing")
+@click.option('--batch-size', type=int, required=True,
+              help="Number of records per batch")
+@click.option('--is-one-based', is_flag=True, default=False,
+              help="Whether indexing is zero or one based")
+def get_max_batch_number(file_map, batch_size, is_one_based):
+    file_map = FileMap.from_tsv(file_map, batch_size)
+    num_batches = file_map.number_of_batches
+    if is_one_based:
+        click.echo(num_batches)
+    else:
+        click.echo(num_batches - 1)
+
+
 if __name__ == '__main__':
     cli()
