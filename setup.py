@@ -12,7 +12,7 @@ setup(name='mxdx',
       packages=find_packages(),
       install_requires=[
           'click',
-          'polars',
+          'polars > 0.20.0',
           'numpy'
       ],
       entry_points='''
