@@ -98,6 +98,7 @@ def consolidate_partials(output_base, extension):
 @click.option('--is-one-based', is_flag=True, default=False,
               help="Whether indexing is zero or one based")
 def get_max_batch_number(file_map, batch_size, is_one_based):
+    """Determine the maximal batch number."""
     file_map = FileMap.from_tsv(file_map, batch_size)
     num_batches = file_map.number_of_batches
     if is_one_based:
