@@ -1,3 +1,5 @@
+# ![mxdx](https://raw.githubusercontent.com/wasade/mxdx/main/mxdx_compressed.jpg)
+
 # mxdx
 Generalized multiplexing / demultiplexing for FASTQ/FASTA/SAM
 
