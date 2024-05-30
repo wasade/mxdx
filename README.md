@@ -24,6 +24,12 @@ to pull from a particular file.
 
 # Installation
 
+We currently test on OSX (x86_64) and Linux (x86_64). Windows passed unit tests
+but failed integration test as bash is not installed by default -- this is 
+likely an easy fix but not a current need. OSX (M1) failed in testing from an
+illegal instruction, which most likely is from a bad wheel in PyPI for a 
+dependency.
+
 To install from pypi:
 
 ```
