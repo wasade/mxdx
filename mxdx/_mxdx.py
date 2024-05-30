@@ -177,6 +177,7 @@ class BufferedQueue:
     To adjust for this, we're increasing the amount of data which an
     individual queue item can hold.
     """
+
     BUFSIZE = 128
 
     def __init__(self, ctx):
