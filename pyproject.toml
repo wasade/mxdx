@@ -1,7 +1,7 @@
 # adapted from scikit-bio
 
 [build-system]
-requires = ["setuptools", "wheel", "versioneer[toml]"]
+requires = ["setuptools", "wheel", "versioneer[toml]==0.29"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
