@@ -87,11 +87,14 @@ class SamRecord(_Record):
         return f"{self.id}\t{self.data}"
 
 
+FILENAME_1 = 'filename_1'
+FILENAME_2 = 'filename_2'
+RECORD_COUNT = 'record_count'
+
 class FileMapNoCounts:
-    ### centralize these strings
-    _filename_1 = 'filename_1'
-    _filename_2 = 'filename_2'
-    _record_count = 'record_count'
+    _filename_1 = FILENAME_1
+    _filename_2 = FILENAME_2
+    _record_count = RECORD_COUNT
 
     def __init__(self, df):
         self._df = df
@@ -148,9 +151,9 @@ class FileMapNoCounts:
 
 
 class FileMap:
-    _filename_1 = 'filename_1'
-    _filename_2 = 'filename_2'
-    _record_count = 'record_count'
+    _filename_1 = FILENAME_1
+    _filename_2 = FILENAME_2
+    _record_count = RECORD_COUNT
     _record_cumsum = 'record_cumsum'
     _start = 'start'
     _stop = 'stop'
