@@ -8,9 +8,23 @@ else
     zcat=zcat
 fi
 
+
 set -x
 set -e
 set -o pipefail
+
+cut -f 1 usage-test-files.tsv > usage-test-files-no-count.tsv
+mxdx set-record-count \
+    --file-map usage-test-files-no-count.tsv \
+    --output usage-test-files-with-count.tsv
+obs=$(cat usage-test-files-with-count.tsv | ${md5})
+exp=$(cat usage-test-files.tsv | ${md5})
+
+if [[ ${obs} != ${exp} ]]; then
+    echo ${obs}
+    echo ${exp}
+    exit 1
+fi
 
 # round trip
 mxdx mux \

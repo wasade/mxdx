@@ -3,7 +3,7 @@ import click
 import sys
 import pathlib
 
-from ._io import FileMap
+from ._io import FileMap, FileMapNoCounts
 from ._mxdx import Multiplex, Demultiplex, Consolidate
 from ._constants import (INTERLEAVE, R1ONLY, R2ONLY, SEQUENTIAL,
                          MERGE, SEPARATE)
@@ -105,6 +105,17 @@ def get_max_batch_number(file_map, batch_size, is_one_based):
         click.echo(num_batches)
     else:
         click.echo(num_batches - 1)
+
+
+@cli.command()
+@click.option('--file-map', type=click.Path(exists=True), required=True,
+              help='Files without record counts')
+@click.option('--output', type=click.Path(exists=False), required=True,
+              help='The filemap to write')
+def set_record_count(file_map, output):
+    file_map = FileMapNoCounts.from_tsv(file_map)
+    file_map.set_counts()
+    file_map.to_tsv(output)
 
 
 if __name__ == '__main__':
