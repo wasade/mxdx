@@ -113,6 +113,7 @@ def get_max_batch_number(file_map, batch_size, is_one_based):
 @click.option('--output', type=click.Path(exists=False), required=True,
               help='The filemap to write')
 def set_record_count(file_map, output):
+    """Gather and set record counts."""
     file_map = FileMapNoCounts.from_tsv(file_map)
     file_map.set_counts()
     file_map.to_tsv(output)
