@@ -282,6 +282,15 @@ class DemultiplexTests(unittest.TestCase):
         fm = FileMap.from_tsv(self.fm_paired, 15)
         dx = Demultiplex(fm, 0, SEPARATE, io.StringIO(mux),
                          self.clean_up.name, 'fna.gz')
+        obs_paths = dx.expected_paths()
+        exp_paths = [self.clean_up.name + \
+                     f'/dx-partial.2.{bar_hash}.0.bar_r1.fasta.fna.gz',
+                     self.clean_up.name + \
+                     f'/dx-partial.2.{bar_hash}.0.bar_r2.fasta.fna.gz',
+                     self.clean_up.name + '/foo_r1.fasta.fna.gz',
+                     self.clean_up.name + '/foo_r2.fasta.fna.gz']
+        self.assertEqual(sorted(obs_paths), sorted(exp_paths))
+
         dx.start()
 
         obs_foo1 = gzip.open(self.clean_up.name + '/foo_r1.fasta.fna.gz',

@@ -3,7 +3,7 @@ import click
 import sys
 import pathlib
 
-from ._io import FileMap
+from ._io import FileMap, FileMapNoCounts
 from ._mxdx import Multiplex, Demultiplex, Consolidate
 from ._constants import (INTERLEAVE, R1ONLY, R2ONLY, SEQUENTIAL,
                          MERGE, SEPARATE)
@@ -79,6 +79,38 @@ def demux(mux_input, file_map, batch, batch_size, output_base,
 
 
 @cli.command()
+@click.option('--file-map', type=click.Path(exists=True), required=True,
+              help="Files with record counts for processing")
+@click.option('--batch', type=int, required=True,
+              help="0-based index for batch offset")
+@click.option('--batch-size', type=int, required=True,
+              help="Number of records per batch")
+@click.option('--output-base', type=click.Path(exists=False), required=True,
+              help="Where to write")
+@click.option('--paired-handling',
+              type=click.Choice([SEPARATE, MERGE]),
+              default=SEPARATE, required=False,
+              help="How to handle paired data")
+@click.option('--extension', type=str, required=True,
+              help=("The output file extension to use, which determines "
+                    "what compression to use"))
+def demux_expected_paths(file_map, batch, batch_size, output_base,
+                         paired_handling, extension):
+    """Print the expected paths."""
+    file_map = FileMap.from_tsv(file_map, batch_size)
+
+    mxfile_batch = file_map.batch(batch)
+    if not mxfile_batch:
+        click.echo("Nothing to do...", err=True)
+        sys.exit(0)
+
+    dx = Demultiplex(file_map, batch, paired_handling, None, output_base,
+                     extension)
+    for path in dx.expected_paths():
+        click.echo(path)
+
+
+@cli.command()
 @click.option('--output-base', type=click.Path(exists=True), required=True,
               help="Where to write")
 @click.option('--extension', type=str, required=True,
@@ -105,6 +137,18 @@ def get_max_batch_number(file_map, batch_size, is_one_based):
         click.echo(num_batches)
     else:
         click.echo(num_batches - 1)
+
+
+@cli.command()
+@click.option('--file-map', type=click.Path(exists=True), required=True,
+              help='Files without record counts')
+@click.option('--output', type=click.Path(exists=False), required=True,
+              help='The filemap to write')
+def set_record_count(file_map, output):
+    """Gather and set record counts."""
+    file_map = FileMapNoCounts.from_tsv(file_map)
+    file_map.set_counts()
+    file_map.to_tsv(output)
 
 
 if __name__ == '__main__':

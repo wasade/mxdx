@@ -3,11 +3,82 @@ import io
 import os
 
 from mxdx._io import (FileMap, MuxFile, IO, ParseError, FastaRecord,
-                      FastqRecord, SamRecord)
+                      FastqRecord, SamRecord, FileMapNoCounts)
 
 
 def _serialize(data):
     return io.StringIO('\n'.join(['\t'.join(v) for v in data]) + '\n')
+
+
+class FileMapNoCountsTests(unittest.TestCase):
+    def setUp(self):
+        cwd = os.path.dirname(__file__)
+
+        fm_unpaired = [["filename_1", ],
+                       ["foo", ],
+                       ["bar", ],
+                       ["baz", ],
+                       ["bing", ]]
+        fm_paired = [["filename_1", "filename_2"],
+                     ["foo", "foo2"],
+                     ["bar", "bar2"],
+                     ["baz", "baz2"],
+                     ["bing", "bing2"]]
+        fm_unpaired_cnt = [["filename_1", "record_count"],
+                           ["foo", "100"],
+                           ["bar", "200"],
+                           ["baz", "1000"],
+                           ["bing", "10"]]
+        fm_paired_cnt = [["filename_1", "filename_2", "record_count"],
+                         ["foo", "foo2", "100"],
+                         ["bar", "bar2", "200"],
+                         ["baz", "baz2", "1000"],
+                         ["bing", "bing2", "10"]]
+        fm_unpaired_real = [["filename_1", ],
+                            [f"{cwd}/test_data/foo_r1.fasta"],
+                            [f"{cwd}/test_data/bar_r1.fasta"]]
+        fm_paired_real = [["filename_1", "filename_2"],
+                          [f"{cwd}/test_data/foo_r1.fasta", f"{cwd}/test_data/foo_r2.fasta"],
+                          [f"{cwd}/test_data/bar_r1.fasta", f"{cwd}/test_data/bar_r2.fasta"]]
+        fm_paired_bad = [["filename_1", "filename_2"],
+                          [f"{cwd}/test_data/foo_r1.fasta", f"{cwd}/test_data/bar_r2.fasta"],
+                          [f"{cwd}/test_data/bar_r1.fasta", f"{cwd}/test_data/foo_r2.fasta"]]
+        self.fm_unpaired = _serialize(fm_unpaired)
+        self.fm_paired = _serialize(fm_paired)
+        self.fm_unpaired_cnt = _serialize(fm_unpaired_cnt)
+        self.fm_paired_cnt = _serialize(fm_paired_cnt)
+        self.fm_unpaired_real = _serialize(fm_unpaired_real)
+        self.fm_paired_real = _serialize(fm_paired_real)
+        self.fm_paired_bad = _serialize(fm_paired_bad)
+
+    def test_filemap_from_tsv_unpaired(self):
+        obs = FileMapNoCounts.from_tsv(self.fm_unpaired)
+        self.assertFalse(obs.is_paired)
+
+        with self.assertRaises(ValueError):
+            FileMapNoCounts.from_tsv(self.fm_unpaired_cnt)
+
+    def test_filemap_from_tsv_paired(self):
+        obs = FileMapNoCounts.from_tsv(self.fm_paired)
+        self.assertTrue(obs.is_paired)
+
+        with self.assertRaises(ValueError):
+            FileMapNoCounts.from_tsv(self.fm_paired_cnt)
+
+    def test_set_counts_unpaired(self):
+        obs = FileMapNoCounts.from_tsv(self.fm_unpaired_real)
+        obs.set_counts()
+        self.assertEqual(obs._df['record_count'].to_list(), [12, 7])
+
+    def test_set_counts_paired(self):
+        obs = FileMapNoCounts.from_tsv(self.fm_paired_real)
+        obs.set_counts()
+        self.assertEqual(obs._df['record_count'].to_list(), [12, 7])
+
+    def test_set_counts_mispaired(self):
+        obs = FileMapNoCounts.from_tsv(self.fm_paired_bad)
+        with self.assertRaises(ValueError):
+            obs.set_counts()
 
 
 class FileMapTests(unittest.TestCase):
@@ -203,6 +274,21 @@ class RecordTests(unittest.TestCase):
 
 
 class IOTests(unittest.TestCase):
+    def test_count_records(self):
+        cwd = os.path.dirname(__file__)
+        tests = [(f"{cwd}/test_data/foo_r1.fasta", 12),
+                 (f"{cwd}/test_data/foo_r2.fasta", 12),
+                 (f"{cwd}/test_data/bar_r1.fasta", 7),
+                 (f"{cwd}/test_data/bar_r2.fasta", 7),
+                 (f"{cwd}/test_data/foo_r1.fastq", 12),
+                 (f"{cwd}/test_data/foo_r2.fastq", 12),
+                 (f"{cwd}/test_data/bar_r1.fastq", 7),
+                 (f"{cwd}/test_data/bar_r2.fastq", 7),
+                 (f"{cwd}/test_data/sammy.sam", 5)]
+        for f, exp in tests:
+            obs = IO.count_records(f)
+            self.assertEqual(obs, exp)
+
     def test_io_from_stream(self):
         data = '\n'.join([">1", "aatt", ">2", "aa", ">3", "tt", ">4", "gg",
                           ">5", "cc", ">6", "gc", ""])

@@ -87,10 +87,73 @@ class SamRecord(_Record):
         return f"{self.id}\t{self.data}"
 
 
+FILENAME_1 = 'filename_1'
+FILENAME_2 = 'filename_2'
+RECORD_COUNT = 'record_count'
+
+class FileMapNoCounts:
+    _filename_1 = FILENAME_1
+    _filename_2 = FILENAME_2
+    _record_count = RECORD_COUNT
+
+    def __init__(self, df):
+        self._df = df
+
+        self._validate()
+        self._is_paired = set(df.columns).issuperset({self._filename_1,
+                                                      self._filename_2})
+
+    @property
+    def is_paired(self):
+        return self._is_paired
+
+    @classmethod
+    def from_tsv(cls, data):
+        df = pl.read_csv(data, separator='\t', infer_schema_length=0,
+                         has_header=True)
+        return cls(df)
+
+    def _validate(self):
+        self._validate_header()
+
+    def _validate_header(self):
+        columns = set(self._df.columns)
+
+        if len(columns) == 2:
+            if columns != {self._filename_1, self._filename_2}:
+                raise ValueError("Header structure is unexpected")
+        elif len(columns) == 1:
+            if columns != {self._filename_1, }:
+                raise ValueError("Header structure is unexpected")
+        else:
+            raise ValueError("Header structure is unexpected")
+
+    def set_counts(self):
+        counts = []
+        if self.is_paired:
+            for (f1, f2) in self._df[[self._filename_1,
+                                      self._filename_2]].iter_rows():
+                f1_count = IO.count_records(f1)
+                f2_count = IO.count_records(f2)
+                if f1_count != f2_count:
+                    raise ValueError(f"R1 and R2 counts are different in "
+                                     f"{f1} and {f2}")
+                counts.append(f1_count)
+        else:
+            for f1 in self._df[self._filename_1]:
+                f1_count = IO.count_records(f1)
+                counts.append(f1_count)
+
+        self._df = self._df.with_columns(pl.Series(counts).alias(self._record_count))
+
+    def to_tsv(self, path):
+        self._df.write_csv(path, separator='\t')
+
+
 class FileMap:
-    _filename_1 = 'filename_1'
-    _filename_2 = 'filename_2'
-    _record_count = 'record_count'
+    _filename_1 = FILENAME_1
+    _filename_2 = FILENAME_2
+    _record_count = RECORD_COUNT
     _record_cumsum = 'record_cumsum'
     _start = 'start'
     _stop = 'stop'
@@ -365,6 +428,18 @@ class IO:
 
         if count < stop:
             raise ParseError("Reader exhausted but expected more records")
+
+    @staticmethod
+    def count_records(path):
+        open_f = IO.opener(path)
+
+        with open_f(path, 'rt') as opened:
+            _, read_f, _ = IO.io_from_stream(opened)
+
+            count = 0
+            for _ in read_f(opened):
+                count += 1
+            return count
 
     @staticmethod
     def read_fasta(data):
