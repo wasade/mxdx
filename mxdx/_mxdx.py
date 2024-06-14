@@ -231,6 +231,16 @@ class Demultiplex:
         self.queue = None
         self._open_files = {}
 
+    def expected_paths(self):
+        paths = []
+        for tag, mx in sorted(self._tag_lookup.items()):
+            if self._file_map.is_paired:
+                for orientation in (R1, R2):
+                    paths.append(self._get_output_path(mx, orientation))
+            else:
+                paths.append(self._get_output_path(mx, None))
+        return paths
+
     def __del__(self):
         self._close_files()
 
